@@ -1,0 +1,118 @@
+import os
+print("Current Working Directory:", os.getcwd())
+
+# Thay đổi thư mục làm việc về nơi chứa file NFAe
+os.chdir(r'C:\Users\Hiếu\OneDrive\Máy tính\Khoa Học Máy Tính K48\Tin Học Lý Thuyết\Đồ Án')
+
+class NFAe:
+    def __init__(self, states, alphabet, transitions, start_state, accept_states):
+        self.states = states
+        self.alphabet = alphabet
+        self.transitions = transitions
+        self.start_state = start_state
+        self.accept_states = accept_states
+        self.epsilon_closures = {}
+
+    def compute_epsilon_closures(self):
+        """Tính epsilon-closure cho tất cả các trạng thái."""
+        for state in self.states:
+            self.epsilon_closures[state] = self.epsilon_closure(state)
+
+    def epsilon_closure(self, state):
+        """Tính epsilon-closure cho một trạng thái."""
+        closure = set([state])
+        stack = [state]
+        while stack:
+            current = stack.pop()
+            for next_state in self.transitions.get((current, ''), []):
+                if next_state not in closure:
+                    closure.add(next_state)
+                    stack.append(next_state)
+        return closure
+
+    def simulate(self, input_string):
+        self.compute_epsilon_closures()  # Tính epsilon-closure một lần trước khi bắt đầu
+        print("\nEpsilon-closures của tất cả các trạng thái:")
+        for state, closure in self.epsilon_closures.items():
+            print(f"  Epsilon-closure({state}) = {closure}")
+
+        print("\nBắt đầu mô phỏng:")
+        current_states = self.epsilon_closures[self.start_state]  # Lấy epsilon-closure của trạng thái bắt đầu
+        print(f"  Trạng thái ban đầu: {self.start_state}, Epsilon-closure: {current_states}")
+
+        steps = []  # Lưu các bước chuyển
+
+        for symbol in input_string:
+            next_states = set()
+            # Từ epsilon-closure của trạng thái hiện tại, xét các chuyển đổi qua ký tự
+            for state in current_states:
+                next_states.update(self.transitions.get((state, symbol), []))
+
+            # Hiển thị trạng thái sau khi qua ký tự nhưng chưa tính epsilon-closure
+            print(f"  Qua nhãn '{symbol}', từ {current_states} đạt trạng thái: {next_states}")
+
+            # Tính epsilon-closure của các trạng thái vừa đạt được
+            closure_after_symbol = set()
+            for state in next_states:
+                closure_after_symbol.update(self.epsilon_closures[state])
+
+            # Hiển thị kết quả sau khi tính epsilon-closure
+            steps.append((symbol, current_states, next_states, closure_after_symbol))
+            print(f"  Sau khi tính Epsilon-closure: {closure_after_symbol}")
+            current_states = closure_after_symbol
+
+        # Kiểm tra trạng thái kết thúc có chứa trạng thái chấp nhận
+        accepted = any(state in self.accept_states for state in current_states)
+
+        if accepted:
+            print("\nKết quả: NFAe chấp nhận chuỗi!")
+            print("Các bước chuyển:")
+            for symbol, before_closure, after_symbol, after_closure in steps:
+                print(f"  Qua nhãn '{symbol}', từ {before_closure} -> {after_symbol} -> Epsilon-closure: {after_closure}")
+        else:
+            print("\nKết quả: NFAe không chấp nhận chuỗi!")
+            print("Các bước chuyển:")
+            for symbol, before_closure, after_symbol, after_closure in steps:
+                print(f"  Qua nhãn '{symbol}', từ {before_closure} -> {after_symbol} -> Epsilon-closure: {after_closure}")
+
+        return accepted
+
+
+def read_nfae_from_file(filename):
+    """Đọc thông tin NFAe từ file."""
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+
+    states = set(lines[0].split(':')[1].strip().split(','))
+    alphabet = set(lines[1].split(':')[1].strip().split(','))
+    start_state = lines[2].split(':')[1].strip()
+    accept_states = set(lines[3].split(':')[1].strip().split(','))
+    transitions = {}
+
+    for line in lines[5:]:  # Bỏ qua 4 dòng đầu tiên
+        state1, input_char, state2 = line.strip().split(',')
+        if (state1, input_char) not in transitions:
+            transitions[(state1, input_char)] = []
+        transitions[(state1, input_char)].append(state2)
+
+    return NFAe(states, alphabet, transitions, start_state, accept_states)
+
+
+def print_nfae_file(filename):
+    """In nội dung của file NFAe trước khi mô phỏng."""
+    print(f"\nNội dung file '{filename}':\n")
+    with open(filename, 'r') as file:
+        content = file.read()
+        print(content)
+
+
+# Đọc NFAe từ file
+filename = "nfae.txt"
+print_nfae_file(filename)  # In nội dung file trước khi chạy thuật toán
+nfae = read_nfae_from_file(filename)
+
+# Kiểm tra với các chuỗi đầu vào
+test_inputs = ["ab"]
+for input_string in test_inputs:
+    print(f"\n\nKiểm tra chuỗi: '{input_string}'")
+    nfae.simulate(input_string)
